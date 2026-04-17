@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drive Mad - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #f1c40f; color: #2c3e50; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #87CEEB; border: 5px solid #2c3e50; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #2c3e50; text-shadow: 2px 2px 0px #fff; pointer-events: none; }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: #fff; background: #2c3e50; padding: 5px 12px; border-radius: 20px; pointer-events: none; }
+        #controls { position: absolute; bottom: 20px; left: 20px; font-size: 14px; color: #2c3e50; background: rgba(255,255,255,0.5); padding: 8px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div id="ui">Level: <span id="lvl">1</span> | Distance: <span id="dist">0</span>m</div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">W/Up: Forward | S/Down: Backward | R: Reset</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const distElement = document.getElementById("dist");
+
+        canvas.width = 800;
+        canvas.height = 400;
+
+        let distance = 0;
+        let gameState = "playing";
+
+        const truck = {
+            x: 100, y: 300, vx: 0, vy: 0, angle: 0, va: 0,
+            w: 60, h: 30, wheelR: 12, grounded: false
+        };
+
+        const terrain = [];
+        for (let i = 0; i < 200; i++) {
+            let y = 350;
+            if (i > 10 && i < 20) y -= (i - 10) * 10; // Ramp
+            if (i >= 20 && i < 30) y = 250; // High ground
+            if (i >= 30 && i < 40) y += (i - 30) * 10; // Down ramp
+            if (i > 50 && i % 10 < 3) y -= 20; // Bumps
+            terrain.push({ x: i * 50, y: y });
+        }
+
+        function getTerrainY(x) {
+            const index = Math.floor(x / 50);
+            if (index < 0) return 350;
+            if (index >= terrain.length - 1) return 350;
+            const t1 = terrain[index];
+            const t2 = terrain[index + 1];
+            const ratio = (x % 50) / 50;
+            return t1.y + (t2.y - t1.y) * ratio;
+        }
+
+        function update() {
+            if (gameState !== "playing") return;
+
+            truck.vy += 0.3; // Gravity
+            truck.x += truck.vx;
+            truck.y += truck.vy;
+            truck.angle += truck.va;
+
+            const groundY = getTerrainY(truck.x);
+            if (truck.y > groundY - 35) {
+                truck.y = groundY - 35;
+                truck.vy = 0;
+                truck.grounded = true;
+                truck.vx *= 0.95; // Friction
+                
+                // Align to slope
+                const nextY = getTerrainY(truck.x + 10);
+                const slope = Math.atan2(nextY - groundY, 10);
+                truck.angle = truck.angle * 0.7 + slope * 0.3;
+            } else {
+                truck.grounded = false;
+                truck.va *= 0.98;
+            }
+
+            // Controls
+            if (keys["KeyW"] || keys["ArrowUp"]) {
+                if (truck.grounded) truck.vx += 0.3;
+                truck.va += 0.005;
+            }
+            if (keys["KeyS"] || keys["ArrowDown"]) {
+                if (truck.grounded) truck.vx -= 0.2;
+                truck.va -= 0.005;
+            }
+
+            // Crash check
+            if (Math.abs(truck.angle) > Math.PI * 0.45 && truck.grounded) {
+                // resetGame();
+            }
+
+            distance = Math.max(distance, Math.floor(truck.x / 10));
+            distElement.innerText = distance;
+
+            if (keys["KeyR"]) resetGame();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Sky
+            ctx.fillStyle = "#87CEEB";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Terrain
+            ctx.save();
+            ctx.translate(-truck.x + 150, 0);
+            
+            ctx.beginPath();
+            ctx.moveTo(terrain[0].x, 400);
+            terrain.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(terrain[terrain.length-1].x, 400);
+            ctx.fillStyle = "#7f8c8d";
+            ctx.fill();
+            ctx.strokeStyle = "#2c3e50";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw Truck
+            ctx.save();
+            ctx.translate(truck.x, truck.y);
+            ctx.rotate(truck.angle);
+            
+            // Body
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(-truck.w/2, -truck.h, truck.w, truck.h);
+            ctx.fillStyle = "#3498db";
+            ctx.fillRect(0, -truck.h, truck.w/2, truck.h/2); // Window
+            
+            // Wheels
+            ctx.fillStyle = "#333";
+            ctx.beginPath(); ctx.arc(-20, 5, truck.wheelR, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(20, 5, truck.wheelR, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#666";
+            ctx.beginPath(); ctx.arc(-20, 5, 5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(20, 5, 5, 0, Math.PI*2); ctx.fill();
+            
+            ctx.restore();
+            ctx.restore();
+        }
+
+        const keys = {};
+        window.addEventListener("keydown", e => keys[e.code] = true);
+        window.addEventListener("keyup", e => keys[e.code] = false);
+
+        function resetGame() {
+            truck.x = 100; truck.y = 300; truck.vx = 0; truck.vy = 0; truck.angle = 0; truck.va = 0;
+            distance = 0;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
