@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FNAF Horror - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-container { width: 800px; height: 500px; background: #111; position: relative; border: 5px solid #333; overflow: hidden; }
+        #office { width: 100%; height: 100%; background: linear-gradient(to bottom, #222, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #camera-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: none; z-index: 10; }
+        #static { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: url('https://media.giphy.com/media/oEI9uWUqnW3Fe/giphy.gif' ); opacity: 0.1; pointer-events: none; }
+        .ui-panel { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; z-index: 20; }
+        button { background: #000; color: #0f0; border: 2px solid #0f0; padding: 10px 20px; cursor: pointer; font-family: inherit; font-weight: bold; }
+        button:hover { background: #0f0; color: #000; }
+        #power-display { position: absolute; top: 20px; left: 20px; font-size: 20px; }
+        #time-display { position: absolute; top: 20px; right: 20px; font-size: 20px; }
+        #cam-label { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; }
+        #jumpscare { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: none; z-index: 100; justify-content: center; align-items: center; }
+        #branding { position: absolute; bottom: 10px; right: 10px; font-size: 12px; color: #050; z-index: 30; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="office">
+            <h2 id="status">OFFICE: SECURE</h2>
+            <div id="static"></div>
+            <div class="ui-panel">
+                <button onclick="toggleCam()">CAMERAS</button>
+                <button id="door-btn" onclick="toggleDoor()">CLOSE DOOR</button>
+            </div>
+        </div>
+
+        <div id="camera-view">
+            <div id="cam-label">CAM 01: MAIN HALL</div>
+            <div id="cam-content" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; font-size:40px;">
+                👁️
+            </div>
+            <div class="ui-panel">
+                <button onclick="changeCam(1)">CAM 1</button>
+                <button onclick="changeCam(2)">CAM 2</button>
+                <button onclick="toggleCam()">BACK TO OFFICE</button>
+            </div>
+        </div>
+
+        <div id="jumpscare">
+            <h1 style="color:red; font-size:80px;">👻 AAAAAAAH!</h1>
+        </div>
+
+        <div id="power-display">POWER: <span id="power">100</span>%</div>
+        <div id="time-display">TIME: <span id="time">12</span> AM</div>
+        <div id="branding">🎮 Provided by Gullsher Games</div>
+    </div>
+
+    <script>
+        let power = 100;
+        let time = 12;
+        let camOpen = false;
+        let doorClosed = false;
+        let enemyPos = 0; // 0: Far, 1: Hall, 2: Door
+        let gameActive = true;
+
+        function update() {
+            if (!gameActive) return;
+
+            // Power consumption
+            let usage = 0.1;
+            if (camOpen) usage += 0.2;
+            if (doorClosed) usage += 0.5;
+            power -= usage;
+            document.getElementById('power').innerText = Math.floor(power);
+
+            if (power <= 0) {
+                gameOver("POWER OUTAGE...");
+            }
+
+            // Enemy movement
+            if (Math.random() < 0.01) {
+                enemyPos++;
+                if (enemyPos > 2) {
+                    if (doorClosed) {
+                        enemyPos = 0;
+                        console.log("Blocked!");
+                    } else {
+                        gameOver("HE GOT IN!");
+                    }
+                }
+                updateCamContent();
+            }
+        }
+
+        function toggleCam() {
+            camOpen = !camOpen;
+            document.getElementById('camera-view').style.display = camOpen ? 'block' : 'none';
+        }
+
+        function toggleDoor() {
+            doorClosed = !doorClosed;
+            document.getElementById('door-btn').innerText = doorClosed ? 'OPEN DOOR' : 'CLOSE DOOR';
+            document.getElementById('status').innerText = doorClosed ? 'OFFICE: DOOR CLOSED' : 'OFFICE: SECURE';
+        }
+
+        function changeCam(id) {
+            document.getElementById('cam-label').innerText = "CAM 0" + id + (id === 1 ? ": MAIN HALL" : ": KITCHEN");
+            updateCamContent();
+        }
+
+        function updateCamContent() {
+            const content = document.getElementById('cam-content');
+            if (enemyPos === 1) content.innerText = "👤";
+            else if (enemyPos === 2) content.innerText = "👹";
+            else content.innerText = "👁️";
+        }
+
+        function gameOver(msg) {
+            gameActive = false;
+            document.getElementById('jumpscare').style.display = 'flex';
+            setTimeout(() => {
+                alert(msg + " Game Over.");
+                location.reload();
+            }, 1000);
+        }
+
+        // Time progression
+        setInterval(() => {
+            if (!gameActive) return;
+            time++;
+            if (time > 12) time = 1;
+            document.getElementById('time').innerText = time;
+            if (time === 6) {
+                gameActive = false;
+                alert("6 AM! YOU SURVIVED!");
+                location.reload();
+            }
+        }, 30000); // 30 seconds per hour
+
+        setInterval(update, 100);
+    </script>
+</body>
+</html>
