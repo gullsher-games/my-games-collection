@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Boing Bang - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #2c3e50; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #34495e; border: 4px solid #ecf0f1; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #f1c40f; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #controls { position: absolute; bottom: 20px; left: 20px; font-size: 14px; color: #bdc3c7; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">Arrows/WASD: Move | Space/Click: Shoot</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+
+        canvas.width = 600;
+        canvas.height = 400;
+
+        let score = 0;
+        const player = { x: 300, y: 370, w: 30, h: 30, speed: 5 };
+        let harpoon = { x: 0, y: 0, active: false, speed: 7 };
+        let bubbles = [{ x: 100, y: 100, r: 40, vx: 2, vy: 0 }];
+
+        const keys = {};
+        window.addEventListener("keydown", e => {
+            keys[e.code] = true;
+            if (e.code === "Space") shoot();
+        });
+        window.addEventListener("keyup", e => keys[e.code] = false);
+        canvas.addEventListener("mousedown", shoot);
+
+        function shoot() {
+            if (!harpoon.active) {
+                harpoon.active = true;
+                harpoon.x = player.x + player.w / 2;
+                harpoon.y = player.y;
+            }
+        }
+
+        function update() {
+            // Player Movement
+            if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= player.speed;
+            if (keys["ArrowRight"] || keys["KeyD"]) player.x += player.speed;
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
+
+            // Harpoon Movement
+            if (harpoon.active) {
+                harpoon.y -= harpoon.speed;
+                if (harpoon.y < 0) harpoon.active = false;
+            }
+
+            // Bubble Movement & Collision
+            bubbles.forEach((b, index) => {
+                b.vy += 0.1; // Gravity
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // Wall Bounce
+                if (b.x < b.r || b.x > canvas.width - b.r) b.vx *= -1;
+                if (b.y > canvas.height - b.r) {
+                    b.y = canvas.height - b.r;
+                    b.vy = -6; // Bounce height
+                }
+
+                // Harpoon Collision
+                if (harpoon.active && harpoon.x > b.x - b.r && harpoon.x < b.x + b.r && harpoon.y < b.y + b.r) {
+                    harpoon.active = false;
+                    score += 100;
+                    scoreElement.innerText = score;
+                    if (b.r > 15) {
+                        bubbles.push({ x: b.x, y: b.y, r: b.r / 2, vx: 2, vy: -4 });
+                        bubbles.push({ x: b.x, y: b.y, r: b.r / 2, vx: -2, vy: -4 });
+                    }
+                    bubbles.splice(index, 1);
+                }
+
+                // Player Collision
+                const dist = Math.hypot(player.x + player.w/2 - b.x, player.y + player.h/2 - b.y);
+                if (dist < b.r + 15) {
+                    alert("Game Over! Score: " + score);
+                    resetGame();
+                }
+            });
+
+            if (bubbles.length === 0) {
+                alert("Level Clear!");
+                resetGame();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Harpoon
+            if (harpoon.active) {
+                ctx.strokeStyle = "#e74c3c";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(harpoon.x, canvas.height);
+                ctx.lineTo(harpoon.x, harpoon.y);
+                ctx.stroke();
+            }
+
+            // Draw Player
+            ctx.fillStyle = "#3498db";
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+
+            // Draw Bubbles
+            bubbles.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(241, 196, 15, 0.7)";
+                ctx.fill();
+                ctx.strokeStyle = "#f1c40f";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreElement.innerText = "0";
+            player.x = 300;
+            harpoon.active = false;
+            bubbles = [{ x: 100, y: 100, r: 40, vx: 2, vy: 0 }];
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
