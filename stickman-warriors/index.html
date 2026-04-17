@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stickman Warriors - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #111; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #222; border: 4px solid #444; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 95vw; max-height: 85vh; cursor: crosshair; }
+        #ui { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; pointer-events: none; }
+        .health-bar { width: 150px; height: 20px; background: #444; border: 2px solid #666; border-radius: 10px; overflow: hidden; }
+        .health-fill { height: 100%; transition: width 0.3s; }
+        #player-health { background: #4caf50; width: 100%; }
+        #enemy-health { background: #f44336; width: 100%; }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #hint { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); font-size: 14px; color: #888; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Player <div class="health-bar"><div id="player-health" class="health-fill"></div></div></div>
+        <div>Enemy <div class="health-bar"><div id="enemy-health" class="health-fill"></div></div></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="hint">Move Mouse/Touch to Control Your Stickman!</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const pHealth = document.getElementById("player-health");
+        const eHealth = document.getElementById("enemy-health");
+
+        canvas.width = 600;
+        canvas.height = 400;
+
+        let player = { x: 150, y: 200, vx: 0, vy: 0, health: 100, color: "#4caf50", angle: 0 };
+        let enemy = { x: 450, y: 200, vx: 0, vy: 0, health: 100, color: "#f44336", angle: 0 };
+        let mouse = { x: 150, y: 200 };
+
+        function drawStickman(s) {
+            ctx.save();
+            ctx.translate(s.x, s.y);
+            ctx.rotate(s.angle);
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+
+            // Head
+            ctx.beginPath(); ctx.arc(0, -20, 8, 0, Math.PI*2); ctx.stroke();
+            // Body
+            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, 10); ctx.stroke();
+            // Arms
+            ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-15, 5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(15, 5); ctx.stroke();
+            // Legs
+            ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(-10, 25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(10, 25); ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function update() {
+            // Player Movement (Follow Mouse)
+            let dx = mouse.x - player.x;
+            let dy = mouse.y - player.y;
+            player.vx += dx * 0.01;
+            player.vy += dy * 0.01;
+            player.vx *= 0.95;
+            player.vy *= 0.95;
+            player.x += player.vx;
+            player.y += player.vy;
+            player.angle = Math.atan2(player.vy, player.vx) + Math.PI/2;
+
+            // Enemy AI (Follow Player)
+            let edx = player.x - enemy.x;
+            let edy = player.y - enemy.y;
+            enemy.vx += edx * 0.005;
+            enemy.vy += edy * 0.005;
+            enemy.vx *= 0.95;
+            enemy.vy *= 0.95;
+            enemy.x += enemy.vx;
+            enemy.y += enemy.vy;
+            enemy.angle = Math.atan2(enemy.vy, enemy.vx) + Math.PI/2;
+
+            // Collision Check
+            let dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+            if (dist < 40) {
+                let force = Math.hypot(player.vx - enemy.vx, player.vy - enemy.vy);
+                if (force > 2) {
+                    if (Math.abs(player.vx) > Math.abs(enemy.vx)) {
+                        enemy.health -= force;
+                        eHealth.style.width = Math.max(0, enemy.health) + "%";
+                    } else {
+                        player.health -= force;
+                        pHealth.style.width = Math.max(0, player.health) + "%";
+                    }
+                }
+                // Bounce back
+                let angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                player.vx += Math.cos(angle) * 5;
+                player.vy += Math.sin(angle) * 5;
+                enemy.vx -= Math.cos(angle) * 5;
+                enemy.vy -= Math.sin(angle) * 5;
+            }
+
+            // Screen Bounds
+            [player, enemy].forEach(s => {
+                if (s.x < 20) s.x = 20; if (s.x > canvas.width - 20) s.x = canvas.width - 20;
+                if (s.y < 20) s.y = 20; if (s.y > canvas.height - 20) s.y = canvas.height - 20;
+            });
+
+            if (player.health <= 0 || enemy.health <= 0) {
+                alert(player.health <= 0 ? "Enemy Wins!" : "You Win!");
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            player.health = 100; enemy.health = 100;
+            pHealth.style.width = "100%"; eHealth.style.width = "100%";
+            player.x = 150; player.y = 200; enemy.x = 450; enemy.y = 200;
+        }
+
+        canvas.addEventListener("mousemove", e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener("touchmove", e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.touches[0].clientX - rect.left;
+            mouse.y = e.touches[0].clientY - rect.top;
+            e.preventDefault();
+        }, {passive: false});
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            update();
+            drawStickman(player);
+            drawStickman(enemy);
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
