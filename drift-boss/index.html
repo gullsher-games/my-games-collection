@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drift Boss - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #2c3e50; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #34495e; border: 4px solid #ecf0f1; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #f1c40f; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #hint { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); font-size: 14px; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="hint">Click or Press SPACE to Drift!</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let score = 0;
+        let gameActive = true;
+        let direction = 1; // 1 for right, -1 for left
+        
+        const car = { x: 200, y: 450, size: 20, speed: 3 };
+        let path = [];
+        const pathWidth = 80;
+
+        // Generate initial path
+        function initPath() {
+            path = [];
+            let currentX = 200;
+            for (let i = 0; i < 15; i++) {
+                let length = Math.random() * 100 + 100;
+                let dir = Math.random() > 0.5 ? 1 : -1;
+                path.push({ x: currentX, y: 450 - i * 100, w: pathWidth, dir: dir });
+                currentX += dir * length * 0.5;
+            }
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            // Move car
+            if (direction === 1) {
+                car.x += car.speed;
+            } else {
+                car.x -= car.speed;
+            }
+            
+            // Scroll path
+            path.forEach(p => p.y += car.speed * 0.8);
+            
+            // Check if car is on path
+            let onPath = false;
+            path.forEach(p => {
+                if (car.y > p.y && car.y < p.y + 120) {
+                    if (car.x > p.x - p.w/2 && car.x < p.x + p.w/2) {
+                        onPath = true;
+                    }
+                }
+            });
+
+            if (!onPath && car.y < 500) {
+                gameActive = false;
+                alert("Game Over! Score: " + score);
+                resetGame();
+            }
+
+            // Add new path segments
+            if (path[path.length-1].y > 0) {
+                let last = path[path.length-1];
+                let dir = Math.random() > 0.5 ? 1 : -1;
+                path.push({ x: last.x + dir * 100, y: last.y - 100, w: pathWidth });
+            }
+
+            // Remove old path segments
+            if (path[0].y > canvas.height) path.shift();
+
+            score++;
+            scoreElement.innerText = Math.floor(score / 10);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Path
+            ctx.fillStyle = "#555";
+            path.forEach((p, i) => {
+                ctx.beginPath();
+                if (i < path.length - 1) {
+                    let next = path[i+1];
+                    ctx.moveTo(p.x - p.w/2, p.y);
+                    ctx.lineTo(p.x + p.w/2, p.y);
+                    ctx.lineTo(next.x + next.w/2, next.y);
+                    ctx.lineTo(next.x - next.w/2, next.y);
+                }
+                ctx.fill();
+            });
+
+            // Draw Car
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(direction === 1 ? 0.5 : -0.5);
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(-10, -15, 20, 30);
+            ctx.fillStyle = "#333";
+            ctx.fillRect(-12, -12, 4, 8); // Wheels
+            ctx.fillRect(8, -12, 4, 8);
+            ctx.fillRect(-12, 4, 4, 8);
+            ctx.fillRect(8, 4, 4, 8);
+            ctx.restore();
+        }
+
+        function changeDirection() {
+            if (gameActive) {
+                direction *= -1;
+            } else {
+                resetGame();
+            }
+        }
+
+        window.addEventListener("keydown", (e) => { if (e.code === "Space") changeDirection(); });
+        canvas.addEventListener("mousedown", changeDirection);
+
+        function resetGame() {
+            score = 0;
+            gameActive = true;
+            direction = 1;
+            car.x = 200;
+            initPath();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initPath();
+        gameLoop();
+    </script>
+</body>
+</html>
