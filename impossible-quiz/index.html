@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Impossible Quiz - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #111; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-container { width: 100%; max-width: 600px; text-align: center; padding: 20px; background: #222; border-radius: 15px; border: 4px solid #444; position: relative; }
+        h1 { color: #ffcc00; font-size: 24px; margin-bottom: 20px; }
+        #question { font-size: 20px; margin-bottom: 30px; min-height: 60px; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        button { padding: 15px; font-size: 16px; cursor: pointer; background: #333; color: white; border: 2px solid #555; border-radius: 8px; transition: 0.2s; }
+        button:hover { background: #444; border-color: #ffcc00; }
+        #score-board { margin-top: 20px; font-size: 18px; color: #aaa; }
+        #branding { position: absolute; bottom: -40px; right: 0; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>The Impossible Quiz</h1>
+        <div id="question">Loading question...</div>
+        <div class="options" id="options"></div>
+        <div id="score-board">Lives: <span id="lives">3</span> | Question: <span id="q-num">1</span></div>
+        <div id="branding">🎮 Provided by Gullsher Games</div>
+    </div>
+
+    <script>
+        const questions = [
+            { q: "How many holes in a polo?", a: ["One", "Four", "Two", "None"], correct: 1 },
+            { q: "Can a match box?", a: ["No", "Yes", "No, but a tin can", "Maybe"], correct: 2 },
+            { q: "What is the answer to life, the universe, and everything?", a: ["Love", "Money", "42", "Pizza"], correct: 2 },
+            { q: "Click the smallest button!", a: ["This one", "No, this", ".", "That one"], correct: 2 },
+            { q: "Which of these is a square?", a: ["Circle", "Triangle", "Box", "Line"], correct: 2 }
+        ];
+
+        let currentQ = 0;
+        let lives = 3;
+
+        function loadQuestion() {
+            if (currentQ >= questions.length) {
+                document.getElementById('game-container').innerHTML = "<h1>YOU WON!</h1><p>You are a genius!</p><button onclick='location.reload()'>Play Again</button>";
+                return;
+            }
+            const qData = questions[currentQ];
+            document.getElementById('question').innerText = qData.q;
+            document.getElementById('q-num').innerText = currentQ + 1;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            qData.a.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(index);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(index) {
+            if (index === questions[currentQ].correct) {
+                currentQ++;
+                loadQuestion();
+            } else {
+                lives--;
+                document.getElementById('lives').innerText = lives;
+                if (lives <= 0) {
+                    document.getElementById('game-container').innerHTML = "<h1>GAME OVER</h1><p>Too hard for you?</p><button onclick='location.reload()'>Try Again</button>";
+                } else {
+                    alert("WRONG! Try again.");
+                }
+            }
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>
