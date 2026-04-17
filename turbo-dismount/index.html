@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turbo Dismount - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #333; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #444; border: 4px solid #222; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #ffeb3b; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #controls { position: absolute; bottom: 20px; left: 20px; font-size: 14px; color: #ccc; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; }
+        #power-bar { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 20px; height: 200px; background: #222; border: 2px solid #555; border-radius: 10px; overflow: hidden; }
+        #power-fill { width: 100%; height: 0%; background: linear-gradient(to top, #4caf50, #ffeb3b, #f44336); position: absolute; bottom: 0; transition: height 0.1s; }
+    </style>
+</head>
+<body>
+    <div id="ui">Damage: <span id="score">0</span></div>
+    <div id="power-bar"><div id="power-fill"></div></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">Hold SPACE or CLICK to Charge Power | Release to DISMOUNT!</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const powerFill = document.getElementById("power-fill");
+
+        canvas.width = 800;
+        canvas.height = 400;
+
+        let score = 0;
+        let power = 0;
+        let charging = false;
+        let gameState = "idle"; // idle, charging, flying, crashed
+
+        const car = { x: 100, y: 330, w: 80, h: 40, vx: 0, vy: 0, angle: 0 };
+        const ragdoll = { x: 100, y: 310, vx: 0, vy: 0, angle: 0, active: false };
+        const obstacles = [
+            { x: 400, y: 320, w: 20, h: 50 },
+            { x: 600, y: 270, w: 100, h: 20 },
+            { x: 750, y: 0, w: 50, h: 400 }
+        ];
+
+        function update() {
+            if (charging) {
+                power += 2;
+                if (power > 100) power = 0;
+                powerFill.style.height = power + "%";
+            }
+
+            if (gameState === "flying") {
+                // Car physics
+                car.vx *= 0.98;
+                car.x += car.vx;
+                
+                // Ragdoll physics
+                if (ragdoll.active) {
+                    ragdoll.vy += 0.5; // Gravity
+                    ragdoll.x += ragdoll.vx;
+                    ragdoll.y += ragdoll.vy;
+                    ragdoll.angle += ragdoll.vx * 0.1;
+
+                    // Ground collision
+                    if (ragdoll.y > 330) {
+                        ragdoll.y = 330;
+                        ragdoll.vy *= -0.4;
+                        ragdoll.vx *= 0.8;
+                        score += Math.abs(Math.round(ragdoll.vy * 10));
+                    }
+
+                    // Obstacle collision
+                    obstacles.forEach(obs => {
+                        if (ragdoll.x > obs.x && ragdoll.x < obs.x + obs.w &&
+                            ragdoll.y > obs.y && ragdoll.y < obs.y + obs.h) {
+                            score += 500;
+                            ragdoll.vx *= -0.5;
+                            ragdoll.vy *= -0.5;
+                        }
+                    });
+                }
+
+                // Car hit obstacle
+                obstacles.forEach(obs => {
+                    if (car.x + car.w > obs.x && car.x < obs.x + obs.w &&
+                        car.y + car.h > obs.y && car.y < obs.y + obs.h) {
+                        if (!ragdoll.active) {
+                            ragdoll.active = true;
+                            ragdoll.vx = car.vx * 1.5;
+                            ragdoll.vy = -car.vx * 0.5;
+                            score += 1000;
+                        }
+                        car.vx = 0;
+                    }
+                });
+
+                scoreElement.innerText = score;
+                if (Math.abs(ragdoll.vx) < 0.1 && ragdoll.active && ragdoll.y >= 330) {
+                    setTimeout(resetGame, 2000);
+                    gameState = "crashed";
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = "#444";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Ground
+            ctx.fillStyle = "#222";
+            ctx.fillRect(0, 350, canvas.width, 50);
+
+            // Draw Obstacles
+            ctx.fillStyle = "#f44336";
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                ctx.strokeStyle = "#b71c1c";
+                ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+            });
+
+            // Draw Car
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.fillStyle = "#2196f3";
+            ctx.fillRect(0, 0, car.w, car.h);
+            ctx.fillStyle = "#000";
+            ctx.fillRect(10, 35, 15, 15); // Wheels
+            ctx.fillRect(55, 35, 15, 15);
+            ctx.restore();
+
+            // Draw Ragdoll
+            if (ragdoll.active || gameState === "idle" || gameState === "charging") {
+                ctx.save();
+                ctx.translate(ragdoll.x, ragdoll.y);
+                ctx.rotate(ragdoll.angle);
+                ctx.fillStyle = "#ffeb3b";
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2); // Head
+                ctx.fill();
+                ctx.fillRect(-5, 10, 10, 20); // Body
+                ctx.restore();
+            }
+        }
+
+        function launch() {
+            if (gameState === "idle" || gameState === "charging") {
+                gameState = "flying";
+                car.vx = power * 0.15;
+                charging = false;
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            power = 0;
+            gameState = "idle";
+            car.x = 100;
+            car.vx = 0;
+            ragdoll.x = 100;
+            ragdoll.y = 310;
+            ragdoll.vx = 0;
+            ragdoll.vy = 0;
+            ragdoll.active = false;
+            ragdoll.angle = 0;
+            powerFill.style.height = "0%";
+            scoreElement.innerText = "0";
+        }
+
+        window.addEventListener("keydown", e => { if (e.code === "Space") charging = true; });
+        window.addEventListener("keyup", e => { if (e.code === "Space") launch(); });
+        canvas.addEventListener("mousedown", () => charging = true);
+        canvas.addEventListener("mouseup", launch);
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
