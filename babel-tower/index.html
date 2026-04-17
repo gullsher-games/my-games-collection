@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babel Tower - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #2c3e50; color: #ecf0f1; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-container { width: 95%; max-width: 500px; height: 90vh; background: #34495e; border-radius: 20px; border: 5px solid #2c3e50; display: flex; flex-direction: column; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        #header { padding: 20px; text-align: center; background: #2c3e50; border-radius: 15px 15px 0 0; }
+        #resources { display: flex; justify-content: space-around; padding: 15px; background: #2c3e50; font-weight: bold; font-size: 18px; }
+        .res-item { color: #f1c40f; }
+        #tower-view { flex-grow: 1; position: relative; overflow: hidden; background: linear-gradient(to bottom, #87CEEB, #E0F6FF); display: flex; flex-direction: column-reverse; align-items: center; padding-bottom: 20px; }
+        .tower-block { width: 120px; height: 40px; background: #95a5a6; border: 2px solid #7f8c8d; margin-bottom: -2px; animation: slideIn 0.3s ease-out; position: relative; }
+        .tower-block::after { content: ''; position: absolute; top: 5px; left: 10px; width: 20px; height: 10px; background: rgba(255,255,255,0.2); }
+        #click-area { padding: 20px; background: #2c3e50; text-align: center; border-radius: 0 0 15px 15px; }
+        button { padding: 15px 30px; font-size: 18px; font-weight: bold; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 10px; transition: 0.2s; width: 80%; }
+        button:hover { background: #d35400; transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
+        #upgrades { padding: 10px; display: flex; justify-content: center; gap: 10px; background: #34495e; }
+        .upgrade-btn { padding: 8px 15px; font-size: 12px; background: #27ae60; width: auto; }
+        #branding { position: absolute; top: 10px; right: 10px; font-size: 10px; color: rgba(255,255,255,0.5); font-weight: bold; }
+        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="branding">🎮 Provided by Gullsher Games</div>
+        <div id="header">
+            <h2 style="margin:0">🏗️ Babel Tower Idle</h2>
+            <div style="font-size: 12px; color: #bdc3c7;">Build to the Heavens!</div>
+        </div>
+        <div id="resources">
+            <div class="res-item">🪨 Stone: <span id="stone">0</span></div>
+            <div class="res-item">🪵 Wood: <span id="wood">0</span></div>
+        </div>
+        <div id="tower-view" id="tower">
+            <!-- Tower blocks will appear here -->
+            <div style="width: 200px; height: 20px; background: #7f8c8d; border-radius: 5px;"></div>
+        </div>
+        <div id="upgrades">
+            <button class="upgrade-btn" onclick="buyUpgrade('stone')">Stone Mine (Cost: 10 Wood)</button>
+            <button class="upgrade-btn" onclick="buyUpgrade('wood')">Lumber Mill (Cost: 10 Stone)</button>
+        </div>
+        <div id="click-area">
+            <button onclick="mine()">MINE RESOURCES (+1)</button>
+            <button onclick="build()" id="build-btn" style="margin-top:10px; background: #2980b9;">BUILD FLOOR (Cost: 5 Stone, 5 Wood)</button>
+            <div style="margin-top: 10px; font-size: 14px;">Floors Built: <span id="floors">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        let stone = 0;
+        let wood = 0;
+        let floors = 0;
+        let stoneRate = 0;
+        let woodRate = 0;
+
+        function updateUI() {
+            document.getElementById('stone').innerText = Math.floor(stone);
+            document.getElementById('wood').innerText = Math.floor(wood);
+            document.getElementById('floors').innerText = floors;
+        }
+
+        function mine() {
+            stone += 1;
+            wood += 1;
+            updateUI();
+        }
+
+        function build() {
+            if (stone >= 5 && wood >= 5) {
+                stone -= 5;
+                wood -= 5;
+                floors++;
+                addBlock();
+                updateUI();
+            } else {
+                alert("Not enough resources! Keep mining!");
+            }
+        }
+
+        function addBlock() {
+            const tower = document.getElementById('tower-view');
+            const block = document.createElement('div');
+            block.className = 'tower-block';
+            // Change color slightly every 5 floors
+            const hue = 160 + (floors * 5) % 40;
+            block.style.backgroundColor = `hsl(${hue}, 20%, 60%)`;
+            tower.appendChild(block);
+            
+            // Scroll to top of tower
+            if (floors > 10) {
+                tower.style.paddingBottom = (floors - 10) * 40 + "px";
+            }
+        }
+
+        function buyUpgrade(type) {
+            if (type === 'stone' && wood >= 10) {
+                wood -= 10;
+                stoneRate += 0.5;
+                alert("Stone Mine purchased! +0.5 Stone/sec");
+            } else if (type === 'wood' && stone >= 10) {
+                stone -= 10;
+                woodRate += 0.5;
+                alert("Lumber Mill purchased! +0.5 Wood/sec");
+            } else {
+                alert("Not enough resources for upgrade!");
+            }
+            updateUI();
+        }
+
+        // Idle production
+        setInterval(() => {
+            stone += stoneRate;
+            wood += woodRate;
+            updateUI();
+        }, 1000);
+
+        updateUI();
+    </script>
+</body>
+</html>
