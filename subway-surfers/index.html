@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Subway Surfers 2D - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #f39c12; color: white; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #34495e; border: 5px solid #2c3e50; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #f1c40f; text-shadow: 2px 2px 0px #000; pointer-events: none; }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: #fff; background: #2c3e50; padding: 5px 12px; border-radius: 20px; pointer-events: none; }
+        #controls { position: absolute; bottom: 20px; left: 20px; font-size: 14px; color: #fff; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span> | Coins: <span id="coins">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">A/D or Left/Right: Switch Lanes | W/Up: Jump | S/Down: Slide</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const coinsElement = document.getElementById("coins");
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let score = 0;
+        let coins = 0;
+        let gameActive = true;
+        let speed = 5;
+
+        const lanes = [100, 200, 300];
+        const player = { lane: 1, y: 500, w: 40, h: 60, jumping: false, sliding: false, vy: 0 };
+        let obstacles = [];
+        let collectibles = [];
+
+        function spawnObstacle() {
+            if (!gameActive) return;
+            const lane = Math.floor(Math.random() * 3);
+            const type = Math.random() > 0.5 ? 'barrier' : 'train';
+            obstacles.push({ lane, y: -100, type, w: 60, h: type === 'barrier' ? 40 : 120 });
+            setTimeout(spawnObstacle, 1500 - speed * 50);
+        }
+
+        function spawnCoin() {
+            if (!gameActive) return;
+            const lane = Math.floor(Math.random() * 3);
+            collectibles.push({ lane, y: -50, r: 10 });
+            setTimeout(spawnCoin, 800);
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            score++;
+            scoreElement.innerText = Math.floor(score / 10);
+            speed += 0.001;
+
+            // Player Jump/Slide Physics
+            if (player.jumping) {
+                player.vy += 0.8;
+                player.y += player.vy;
+                if (player.y >= 500) {
+                    player.y = 500;
+                    player.jumping = false;
+                    player.vy = 0;
+                }
+            }
+
+            // Update Obstacles
+            obstacles.forEach((obs, index) => {
+                obs.y += speed;
+                if (obs.y > canvas.height) obstacles.splice(index, 1);
+
+                // Collision Check
+                if (obs.lane === player.lane && obs.y + obs.h > player.y && obs.y < player.y + player.h) {
+                    if (obs.type === 'barrier' && player.jumping) return; // Jump over barrier
+                    if (obs.type === 'train' && player.sliding) return; // Slide under train (simplified)
+                    
+                    gameActive = false;
+                    alert("Game Over! Score: " + Math.floor(score / 10));
+                    resetGame();
+                }
+            });
+
+            // Update Coins
+            collectibles.forEach((coin, index) => {
+                coin.y += speed;
+                if (coin.y > canvas.height) collectibles.splice(index, 1);
+
+                // Collection Check
+                const px = lanes[player.lane];
+                const py = player.y + player.h/2;
+                const dist = Math.hypot(px - lanes[coin.lane], py - coin.y);
+                if (dist < 30) {
+                    coins++;
+                    coinsElement.innerText = coins;
+                    collectibles.splice(index, 1);
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Tracks
+            ctx.fillStyle = "#2c3e50";
+            lanes.forEach(x => ctx.fillRect(x - 30, 0, 60, canvas.height));
+            ctx.strokeStyle = "#34495e";
+            ctx.lineWidth = 2;
+            for(let i=0; i<canvas.height; i+=40) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Draw Obstacles
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.type === 'barrier' ? "#e74c3c" : "#95a5a6";
+                ctx.fillRect(lanes[obs.lane] - obs.w/2, obs.y, obs.w, obs.h);
+            });
+
+            // Draw Coins
+            collectibles.forEach(coin => {
+                ctx.beginPath();
+                ctx.arc(lanes[coin.lane], coin.y, coin.r, 0, Math.PI * 2);
+                ctx.fillStyle = "#f1c40f";
+                ctx.fill();
+                ctx.strokeStyle = "#d35400";
+                ctx.stroke();
+            });
+
+            // Draw Player
+            ctx.fillStyle = "#3498db";
+            let drawH = player.sliding ? player.h/2 : player.h;
+            let drawY = player.sliding ? player.y + player.h/2 : player.y;
+            ctx.fillRect(lanes[player.lane] - player.w/2, drawY, player.w, drawH);
+        }
+
+        window.addEventListener("keydown", e => {
+            if (e.code === "ArrowLeft" || e.code === "KeyA") player.lane = Math.max(0, player.lane - 1);
+            if (e.code === "ArrowRight" || e.code === "KeyD") player.lane = Math.min(2, player.lane + 1);
+            if ((e.code === "ArrowUp" || e.code === "KeyW") && !player.jumping) {
+                player.jumping = true;
+                player.vy = -15;
+            }
+            if (e.code === "ArrowDown" || e.code === "KeyS") {
+                player.sliding = true;
+                setTimeout(() => player.sliding = false, 500);
+            }
+        });
+
+        function resetGame() {
+            score = 0; coins = 0; speed = 5;
+            gameActive = true;
+            obstacles = []; collectibles = [];
+            player.lane = 1; player.y = 500;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        spawnObstacle();
+        spawnCoin();
+        gameLoop();
+    </script>
+</body>
+</html>
