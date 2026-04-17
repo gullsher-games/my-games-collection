@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Tester - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #ffebee; color: #d81b60; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-container { width: 90%; max-width: 400px; text-align: center; padding: 30px; background: white; border-radius: 25px; box-shadow: 0 15px 35px rgba(216, 27, 96, 0.2); border: 3px solid #f48fb1; position: relative; }
+        h1 { font-size: 28px; margin-bottom: 20px; color: #ad1457; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-size: 14px; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 12px; border: 2px solid #f8bbd0; border-radius: 12px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        input:focus { border-color: #d81b60; box-shadow: 0 0 8px rgba(216, 27, 96, 0.2); }
+        #calculate-btn { width: 100%; padding: 15px; margin-top: 10px; background: #d81b60; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 10px rgba(216, 27, 96, 0.3); }
+        #calculate-btn:hover { background: #ad1457; transform: translateY(-2px); }
+        #result-container { display: none; margin-top: 20px; animation: fadeIn 0.5s ease-in; }
+        #heart { font-size: 60px; margin: 10px 0; color: #e91e63; display: inline-block; animation: pulse 1s infinite; }
+        #percentage { font-size: 48px; font-weight: bold; margin: 5px 0; }
+        #message { font-size: 18px; font-style: italic; color: #880e4f; }
+        #branding { position: absolute; bottom: -40px; right: 0; font-size: 12px; color: #ad1457; font-weight: bold; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>❤️ Love Tester</h1>
+        <div id="input-screen">
+            <div class="input-group">
+                <label>Your Name:</label>
+                <input type="text" id="name1" placeholder="Enter your name...">
+            </div>
+            <div class="input-group">
+                <label>Crush's Name:</label>
+                <input type="text" id="name2" placeholder="Enter their name...">
+            </div>
+            <button id="calculate-btn" onclick="testLove()">Calculate Compatibility!</button>
+        </div>
+
+        <div id="result-container">
+            <div id="heart">❤️</div>
+            <div id="percentage">0%</div>
+            <div id="message">Testing...</div>
+            <button id="calculate-btn" style="margin-top: 20px; background: #f06292;" onclick="resetGame()">Try Again</button>
+        </div>
+        <div id="branding">🎮 Provided by Gullsher Games</div>
+    </div>
+
+    <script>
+        function testLove() {
+            const n1 = document.getElementById('name1').value.trim();
+            const n2 = document.getElementById('name2').value.trim();
+
+            if (n1 === "" || n2 === "") {
+                alert("Please enter both names!");
+                return;
+            }
+
+            document.getElementById('input-screen').style.display = 'none';
+            document.getElementById('result-container').style.display = 'block';
+            
+            // Generate a pseudo-random percentage based on names
+            const combined = (n1 + n2).toLowerCase();
+            let hash = 0;
+            for (let i = 0; i < combined.length; i++) {
+                hash = combined.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const score = Math.abs(hash % 101);
+
+            // Animate the percentage
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= score) {
+                    clearInterval(interval);
+                    displayMessage(score);
+                } else {
+                    current++;
+                    document.getElementById('percentage').innerText = current + "%";
+                }
+            }, 20);
+        }
+
+        function displayMessage(score) {
+            let msg = "";
+            if (score > 90) msg = "True Soulmates! ❤️";
+            else if (score > 75) msg = "Great Match! 😍";
+            else if (score > 50) msg = "There's a Spark! ✨";
+            else if (score > 25) msg = "Maybe as Friends? 😊";
+            else msg = "Better Luck Next Time! 💔";
+            document.getElementById('message').innerText = msg;
+        }
+
+        function resetGame() {
+            document.getElementById('name1').value = "";
+            document.getElementById('name2').value = "";
+            document.getElementById('input-screen').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+            document.getElementById('percentage').innerText = "0%";
+        }
+    </script>
+</body>
+</html>
