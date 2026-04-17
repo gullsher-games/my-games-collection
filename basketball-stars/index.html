@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Basketball Stars - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: linear-gradient(to bottom, #1e3c72, #2a5298); border: 4px solid #333; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5); max-width: 95vw; max-height: 85vh; cursor: crosshair; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #ff9800; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.5); pointer-events: none; }
+        #hint { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); font-size: 14px; color: #ccc; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span> | Best: <span id="best">0</span></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="hint">Click and Drag to Shoot!</div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const bestElement = document.getElementById("best");
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let score = 0;
+        let best = 0;
+        let isDragging = false;
+        let startX, startY;
+        
+        const gravity = 0.25;
+        const ball = { x: 200, y: 500, vx: 0, vy: 0, radius: 15, active: false };
+        const hoop = { x: 200, y: 150, width: 60, height: 10 };
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Backboard
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.fillRect(hoop.x - 40, hoop.y - 60, 80, 60);
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(hoop.x - 40, hoop.y - 60, 80, 60);
+
+            // Draw Hoop
+            ctx.strokeStyle = "#ff5722";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(hoop.x - hoop.width/2, hoop.y);
+            ctx.lineTo(hoop.x + hoop.width/2, hoop.y);
+            ctx.stroke();
+
+            // Draw Net
+            ctx.strokeStyle = "rgba(255,255,255,0.5)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(hoop.x - hoop.width/2, hoop.y);
+            ctx.lineTo(hoop.x - 20, hoop.y + 40);
+            ctx.lineTo(hoop.x + 20, hoop.y + 40);
+            ctx.lineTo(hoop.x + hoop.width/2, hoop.y);
+            ctx.stroke();
+
+            // Draw Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#ff9800";
+            ctx.fill();
+            ctx.strokeStyle = "#e65100";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // Ball lines
+            ctx.beginPath();
+            ctx.moveTo(ball.x - ball.radius, ball.y);
+            ctx.lineTo(ball.x + ball.radius, ball.y);
+            ctx.stroke();
+
+            // Draw Drag Line
+            if (isDragging) {
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x + (startX - currentX), ball.y + (startY - currentY));
+                ctx.strokeStyle = "rgba(255,255,255,0.5)";
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        let currentX, currentY;
+
+        function update() {
+            if (ball.active) {
+                ball.vy += gravity;
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+
+                // Hoop Collision
+                if (ball.vy > 0 && ball.y > hoop.y && ball.y < hoop.y + 20 && 
+                    ball.x > hoop.x - hoop.width/2 && ball.x < hoop.x + hoop.width/2) {
+                    score++;
+                    scoreElement.innerText = score;
+                    if (score > best) {
+                        best = score;
+                        bestElement.innerText = best;
+                    }
+                    resetBall();
+                }
+
+                // Out of bounds
+                if (ball.y > canvas.height + 50 || ball.x < -50 || ball.x > canvas.width + 50) {
+                    score = 0;
+                    scoreElement.innerText = score;
+                    resetBall();
+                }
+            }
+        }
+
+        function resetBall() {
+            ball.active = false;
+            ball.x = 200;
+            ball.y = 500;
+            ball.vx = 0;
+            ball.vy = 0;
+        }
+
+        function startDrag(x, y) {
+            if (!ball.active) {
+                isDragging = true;
+                startX = x;
+                startY = y;
+                currentX = x;
+                currentY = y;
+            }
+        }
+
+        function moveDrag(x, y) {
+            if (isDragging) {
+                currentX = x;
+                currentY = y;
+            }
+        }
+
+        function endDrag() {
+            if (isDragging) {
+                isDragging = false;
+                ball.active = true;
+                ball.vx = (startX - currentX) * 0.1;
+                ball.vy = (startY - currentY) * 0.1;
+            }
+        }
+
+        canvas.addEventListener("mousedown", e => startDrag(e.clientX, e.clientY));
+        window.addEventListener("mousemove", e => moveDrag(e.clientX, e.clientY));
+        window.addEventListener("mouseup", endDrag);
+
+        canvas.addEventListener("touchstart", e => {
+            startDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }, {passive: false});
+        window.addEventListener("touchmove", e => moveDrag(e.touches[0].clientX, e.touches[0].clientY));
+        window.addEventListener("touchend", endDrag);
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
