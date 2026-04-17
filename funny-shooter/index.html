@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Funny Shooter - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #87CEEB; color: white; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; cursor: crosshair; }
+        canvas { background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%); border: 4px solid #333; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.3); max-width: 95vw; max-height: 85vh; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 24px; font-weight: bold; color: #ff5722; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; }
+        #branding { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 20px; pointer-events: none; }
+        #crosshair { position: fixed; width: 30px; height: 30px; border: 2px solid red; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 100; }
+        #crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: red; transform: translate(-50%, -50%); border-radius: 50%; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span> | Time: <span id="timer">30</span>s</div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="crosshair"></div>
+    <div id="branding">🎮 Provided by Gullsher Games</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const timerElement = document.getElementById("timer");
+        const crosshair = document.getElementById("crosshair");
+
+        canvas.width = 800;
+        canvas.height = 500;
+
+        let score = 0;
+        let timeLeft = 30;
+        let targets = [];
+        let gameActive = true;
+
+        // Update crosshair position
+        window.addEventListener('mousemove', (e) => {
+            crosshair.style.left = e.clientX + 'px';
+            crosshair.style.top = e.clientY + 'px';
+        });
+
+        function spawnTarget() {
+            if (!gameActive) return;
+            const x = Math.random() * (canvas.width - 60) + 30;
+            const y = Math.random() * (canvas.height - 150) + 50;
+            const size = Math.random() * 20 + 30;
+            targets.push({ x, y, size, life: 100, color: `hsl(${Math.random() * 360}, 70%, 60%)` });
+            setTimeout(spawnTarget, Math.max(500, 1500 - score * 10));
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Ground
+            ctx.fillStyle = "#4CAF50";
+            ctx.fillRect(0, 400, canvas.width, 100);
+
+            // Draw Targets
+            targets.forEach((t, index) => {
+                ctx.save();
+                ctx.translate(t.x, t.y);
+                
+                // Funny Body
+                ctx.fillStyle = t.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, t.size, t.size * 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Eyes
+                ctx.fillStyle = "white";
+                ctx.beginPath(); ctx.arc(-10, -10, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(10, -10, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "black";
+                ctx.beginPath(); ctx.arc(-10, -10, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(10, -10, 4, 0, Math.PI * 2); ctx.fill();
+
+                // Mouth
+                ctx.beginPath();
+                ctx.arc(0, 10, 10, 0, Math.PI, false);
+                ctx.stroke();
+
+                ctx.restore();
+                
+                t.life -= 0.5;
+                if (t.life <= 0) targets.splice(index, 1);
+            });
+
+            if (!gameActive) {
+                ctx.fillStyle = "rgba(0,0,0,0.7)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "white";
+                ctx.font = "48px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2);
+                ctx.font = "24px Arial";
+                ctx.fillText(`Final Score: ${score}`, canvas.width/2, canvas.height/2 + 50);
+                ctx.fillText("Click to Restart", canvas.width/2, canvas.height/2 + 90);
+            }
+        }
+
+        canvas.addEventListener("mousedown", (e) => {
+            if (!gameActive) {
+                resetGame();
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            targets.forEach((t, index) => {
+                const dist = Math.hypot(mouseX - t.x, mouseY - t.y);
+                if (dist < t.size) {
+                    score += 100;
+                    scoreElement.innerText = score;
+                    targets.splice(index, 1);
+                    // Flash effect
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            });
+        });
+
+        function resetGame() {
+            score = 0;
+            timeLeft = 30;
+            targets = [];
+            gameActive = true;
+            scoreElement.innerText = "0";
+            timerElement.innerText = "30";
+        }
+
+        // Timer
+        setInterval(() => {
+            if (gameActive) {
+                timeLeft--;
+                timerElement.innerText = timeLeft;
+                if (timeLeft <= 0) gameActive = false;
+            }
+        }, 1000);
+
+        function gameLoop() {
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        spawnTarget();
+        gameLoop();
+    </script>
+</body>
+</html>
