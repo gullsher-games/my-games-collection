@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TenTrix - Gullsher Games</title>
+    <style>
+        body { margin: 0; background: #f0f2f5; color: #333; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        #game-container { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; position: relative; max-width: 95vw; }
+        canvas { background: #fff; border: 2px solid #eee; border-radius: 10px; cursor: pointer; touch-action: none; }
+        #score-container { font-size: 24px; font-weight: bold; margin-bottom: 15px; color: #2c3e50; }
+        #branding { position: absolute; bottom: -35px; right: 10px; font-size: 12px; color: #7f8c8d; font-weight: bold; }
+        .controls-hint { font-size: 14px; color: #95a5a6; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score-container">Score: <span id="score">0</span></div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls-hint">Drag and drop blocks to fill rows or columns!</div>
+        <div id="branding">🎮 Provided by Gullsher Games</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+
+        const GRID_SIZE = 10;
+        const CELL_SIZE = 30;
+        const PADDING = 5;
+        canvas.width = GRID_SIZE * CELL_SIZE + PADDING * 2;
+        canvas.height = canvas.width + 120; // Extra space for pieces
+
+        let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        let score = 0;
+        let pieces = [];
+        let draggingPiece = null;
+        let dragX = 0, dragY = 0;
+
+        const COLORS = ["#3498db", "#e74c3c", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22", "#1abc9c"];
+        const SHAPES = [
+            [[1]], // 1x1
+            [[1, 1]], // 1x2
+            [[1], [1]], // 2x1
+            [[1, 1, 1]], // 1x3
+            [[1], [1], [1]], // 3x1
+            [[1, 1], [1, 1]], // 2x2
+            [[1, 1, 1], [0, 1, 0]], // T
+            [[1, 1], [1, 0]], // L small
+            [[1, 1, 1], [1, 0, 0], [1, 0, 0]] // L big
+        ];
+
+        function generatePieces() {
+            pieces = [];
+            for (let i = 0; i < 3; i++) {
+                const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                pieces.push({ shape, color, x: 20 + i * 100, y: canvas.width + 20, originalX: 20 + i * 100, originalY: canvas.width + 20 });
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    ctx.fillStyle = grid[r][c] || "#ecf0f1";
+                    ctx.fillRect(PADDING + c * CELL_SIZE, PADDING + r * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2);
+                }
+            }
+
+            // Draw Pieces
+            pieces.forEach(p => {
+                if (p === draggingPiece) return;
+                drawPiece(p, p.x, p.y, 0.7);
+            });
+
+            if (draggingPiece) {
+                drawPiece(draggingPiece, dragX, dragY, 1);
+            }
+        }
+
+        function drawPiece(p, x, y, scale) {
+            ctx.fillStyle = p.color;
+            const size = CELL_SIZE * scale;
+            p.shape.forEach((row, r) => {
+                row.forEach((val, c) => {
+                    if (val) {
+                        ctx.fillRect(x + c * size, y + r * size, size - 2, size - 2);
+                    }
+                });
+            });
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener("mousedown", startDrag);
+        canvas.addEventListener("touchstart", startDrag);
+        window.addEventListener("mousemove", drag);
+        window.addEventListener("touchmove", drag);
+        window.addEventListener("mouseup", endDrag);
+        window.addEventListener("touchend", endDrag);
+
+        function startDrag(e) {
+            const pos = getMousePos(e);
+            pieces.forEach(p => {
+                if (pos.x > p.x && pos.x < p.x + 80 && pos.y > p.y && pos.y < p.y + 80) {
+                    draggingPiece = p;
+                    dragX = pos.x - 15;
+                    dragY = pos.y - 15;
+                }
+            });
+        }
+
+        function drag(e) {
+            if (!draggingPiece) return;
+            const pos = getMousePos(e);
+            dragX = pos.x - 45;
+            dragY = pos.y - 45;
+            draw();
+            e.preventDefault();
+        }
+
+        function endDrag() {
+            if (!draggingPiece) return;
+            const gridX = Math.round((dragX - PADDING) / CELL_SIZE);
+            const gridY = Math.round((dragY - PADDING) / CELL_SIZE);
+
+            if (canPlace(draggingPiece, gridX, gridY)) {
+                placePiece(draggingPiece, gridX, gridY);
+                pieces = pieces.filter(p => p !== draggingPiece);
+                if (pieces.length === 0) generatePieces();
+                checkLines();
+            } else {
+                draggingPiece.x = draggingPiece.originalX;
+                draggingPiece.y = draggingPiece.originalY;
+            }
+            draggingPiece = null;
+            draw();
+        }
+
+        function canPlace(p, startX, startY) {
+            return p.shape.every((row, r) => 
+                row.every((val, c) => {
+                    if (!val) return true;
+                    const x = startX + c;
+                    const y = startY + r;
+                    return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE && !grid[y][x];
+                })
+            );
+        }
+
+        function placePiece(p, startX, startY) {
+            p.shape.forEach((row, r) => {
+                row.forEach((val, c) => {
+                    if (val) grid[startY + r][startX + c] = p.color;
+                });
+            });
+            score += 10;
+            scoreElement.innerText = score;
+        }
+
+        function checkLines() {
+            let linesToClear = { rows: [], cols: [] };
+            for (let i = 0; i < GRID_SIZE; i++) {
+                if (grid[i].every(cell => cell !== 0)) linesToClear.rows.push(i);
+                if (grid.every(row => row[i] !== 0)) linesToClear.cols.push(i);
+            }
+            linesToClear.rows.forEach(r => grid[r].fill(0));
+            linesToClear.cols.forEach(c => grid.forEach(row => row[c] = 0));
+            if (linesToClear.rows.length || linesToClear.cols.length) {
+                score += (linesToClear.rows.length + linesToClear.cols.length) * 100;
+                scoreElement.innerText = score;
+            }
+        }
+
+        generatePieces();
+        draw();
+    </script>
+</body>
+</html>
